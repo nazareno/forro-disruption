@@ -1,0 +1,191 @@
+---
+title: "REPLACE ME"
+output:
+    html_document:
+    df_print: paged
+theme: sandstone
+---
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+library(tidyverse)
+library(here)
+library(hrbrthemes)
+source(here::here("code/lib.R"))
+theme_set(theme_ipsum_rc())
+
+# knitr::opts_chunk$set(tidy = FALSE,
+#                       fig.width = 6,
+#                       fig.height = 5,
+#                       echo = FALSE)
+```
+
+```{r read}
+disrup_raw = read_csv(here::here("data/disruptions.csv"), 
+                  col_types = "ccdcccdddd")
+```
+
+## All songs
+
+```{r}
+disrup_raw %>% 
+  count(i > 0, j > 0, sort = T)
+```
+
+
+```{r}
+disrup_raw %>% 
+  filter(i > 0, j == 0) %>% 
+  top_n(7, i) %>% 
+  mutate(info = paste(artist, year, song)) %>% 
+  select(info, i, j, k, D)
+```
+
+```{r}
+disrup_raw %>% 
+  ggplot(aes(x = D)) + 
+  geom_histogram(bins = 20)
+
+disrup_raw %>% 
+  filter(i> 0) %>% 
+  ggplot(aes(x = D)) + 
+  geom_histogram(bins = 20)
+```
+
+
+```{r}
+disrup_raw %>% 
+  filter(artist %in% c("Marinês", "Luiz Gonzaga", "Dominguinhos")) %>%
+  filter(i + j > 0) %>% 
+  ggplot(aes(x = year, y = D)) + 
+  facet_wrap(~artist) +
+  geom_point(size = 1, alpha = .7) +
+  geom_smooth()
+```
+
+```{r}
+d = disrup_raw %>% 
+  filter(artist %in% c("Marinês", "Luiz Gonzaga", "Dominguinhos", "Flávio José", "Genival Lacerda", "Trio Nordestino", "Sivuca")) %>%
+  filter(i + j > 0) 
+  
+dg = d %>% 
+  group_by(artist, year) %>% 
+  summarise(D = quantile(D, .9))
+
+plot_profile = function(d) {
+  d %>%
+    group_by(artist, year) %>%
+    summarise(D95 = quantile(D, .95, na.rm = T),
+              D05 = quantile(D, .05, na.rm = T)) %>%
+    ggplot(aes(x = year)) +
+    facet_wrap( ~ reorder(artist, D95)) +
+    geom_ribbon(aes(ymax = D95, ymin = D05), color = "black", fill = "coral") +
+    ylim(-1, 1) +
+    labs(title = "5 to 95-percentile range of D per year")
+}
+
+d %>% 
+  plot_profile()
+
+d %>% 
+  ggplot(aes(x = year, y = D)) + 
+  facet_wrap(~artist) +
+  geom_point(size = .8, alpha = .2, color = "coral") +
+  geom_line(data = dg, color = "black")
+```
+
+```{r}
+disrup_raw %>%
+  filter(i > 0, j > 0) %>%
+  mutate(year = cut(year, breaks = 10)) %>%
+  ggplot(aes(x = year, y = D, group = year)) +
+  geom_boxplot(coef = 1000)
+
+plota = function(d){
+  d %>% 
+  group_by(year) %>% 
+  summarise(D95 = quantile(D, .95, na.rm = T), 
+            D05 = quantile(D, .05, na.rm = T)) %>% 
+  ggplot(aes(x = year)) + 
+  geom_ribbon(aes(ymax = D95, ymin = D05), color = "black", fill = "coral") + 
+    ylim(-1, 1) + 
+  labs(title = "5 to 95-percentile range of D per year")
+}
+
+disrup_raw %>% 
+  plota()
+
+disrup_raw %>% 
+  filter(i > 0, j > 0) %>% 
+  plota()
+```
+
+```{r}
+percentiles = disrup_raw %>% 
+  group_by(artist, year) %>% 
+  summarise(D90 = quantile(D, .9, na.rm = T), n = n()) %>% 
+  filter(n > 5) %>% 
+  mutate(years = n_distinct(year)) %>% 
+  ungroup()
+
+least_d = percentiles %>% 
+  filter(years >= 10) %>% 
+  group_by(artist) %>% 
+  summarise(Dall = mean(D90)) %>% 
+  top_n(9, -Dall)
+
+most_d = percentiles %>% 
+  filter(years >= 10) %>% 
+  group_by(artist) %>% 
+  summarise(Dall = mean(D90)) %>% 
+  top_n(9, Dall)
+```
+
+```{r}
+disrup_raw %>% 
+  filter(artist %in% least_d$artist) %>%
+  filter(i + j > 0) %>% 
+  plot_profile()
+
+disrup_raw %>% 
+  filter(artist %in% most_d$artist) %>%
+  filter(i + j > 0) %>% 
+  plot_profile()
+```
+
+
+```{r}
+disrup_raw %>% 
+  group_by(artist) %>% 
+  summarise(D = mean(D), n = n(), years = n_distinct(year)) %>% 
+  filter(years >5) %>% 
+  top_n(10, -D)
+```
+
+
+```{r}
+disrup_raw %>% 
+  filter(i > 0) %>% 
+  ggplot(aes(x = i)) + 
+  geom_histogram(boundary = 0, binwidth = 5) + 
+  labs("Songs with i > 0")
+```
+
+```{r}
+disrup_raw %>% 
+  filter(j > 0) %>% 
+  ggplot(aes(x = j)) + 
+  geom_histogram(boundary = 0, binwidth = 5) + 
+  labs("Songs with i > 0")
+```
+
+
+```{r}
+disrup = disrup_raw %>% 
+  filter(i > 5, j > 5)
+```
+
+
+```{r}
+disrup
+```
+
