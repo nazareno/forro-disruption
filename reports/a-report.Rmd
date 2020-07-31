@@ -20,15 +20,62 @@ theme_set(theme_ipsum_rc())
 ```
 
 ```{r read}
-disrup_raw = read_csv(here::here("data/disruptions.csv"), 
-                  col_types = "ccdcccdddd")
+disrup_raw = read_csv(here::here("data/ranking - t090 - w10 - warmup.csv"), 
+                      col_types = "ccccddddd") %>% 
+  rename(D = disruption)
+
+disrup = disrup_raw %>% 
+  filter(i + j > 0)
+
+glimpse(disrup_raw)
+
+glimpse(disrup)
 ```
+
+```{r}
+skimr::skim(disrup)
+```
+
+```{r}
+disrup %>% 
+  ggplot(aes(x = i + j, y = k)) + 
+  geom_point(size = .8, alpha = .5)
+```
+
 
 ## All songs
 
 ```{r}
 disrup_raw %>% 
   count(i > 0, j > 0, sort = T)
+```
+
+```{r}
+disrup_raw %>% 
+  ggplot(aes(x = i)) + 
+  geom_histogram(boundary = 0, binwidth = 1)
+
+disrup_raw %>% 
+  ggplot(aes(x = j)) + 
+  geom_histogram(boundary = 0, binwidth = 1)
+
+disrup_raw %>% 
+  ggplot(aes(x = k)) + 
+  geom_histogram(boundary = 0, bins =100)
+```
+
+```{r}
+disrup %>% 
+  ggplot(aes(x = i)) + 
+  geom_histogram(boundary = 0, binwidth = 1)
+
+disrup %>% 
+  ggplot(aes(x = j)) + 
+  geom_histogram(boundary = 0, binwidth = 1)
+
+disrup %>% 
+  ggplot(aes(x = k)) + 
+  geom_histogram(boundary = 0, bins =100)
 ```
 
 
@@ -41,15 +88,85 @@ disrup_raw %>%
 ```
 
 ```{r}
+disrup %>% 
+  filter(artist == "Marinês", year >= 1970, year <1973) %>% 
+  arrange(year)
+```
+
+
+```{r}
 disrup_raw %>% 
   ggplot(aes(x = D)) + 
   geom_histogram(bins = 20)
 
-disrup_raw %>% 
-  filter(i> 0) %>% 
+disrup %>% 
   ggplot(aes(x = D)) + 
-  geom_histogram(bins = 20)
+  geom_histogram(bins = 20)+ 
+  labs(title = "considerando k")
+
+disrup %>% 
+  ggplot(aes(x = (i - j)/(i + j))) + 
+  geom_histogram(bins = 20) + 
+  labs(title = "desconsiderando k")
 ```
+
+```{r}
+
+disrup = disrup %>% 
+  mutate(D2 = (i-j)/(i+j))
+
+disrup %>% 
+  filter(D >= 0) %>% 
+  summarise(correlacao_d = cor(k, D, method = "kendall"), 
+            correlacao_d2 = cor(k, D2, method = "kendall"))
+
+disrup %>% 
+  filter(D >= 0) %>% 
+  ggplot(aes(x = k, y = D)) + 
+  geom_point(alpha = .5, size = 2)+
+  scale_color_viridis_c(direction = -1) + 
+  scale_x_log10() + 
+  scale_y_log10()
+
+disrup %>% 
+  filter(D2 >= 0) %>% 
+  ggplot(aes(x = k, y = D2)) + 
+  geom_point(alpha = .5, size = 2)+
+  scale_color_viridis_c(direction = -1) + 
+  scale_x_log10() + 
+  scale_y_log10()
+```
+
+
+```{r}
+disrup %>% 
+  filter(D >= 0) %>% 
+  ggplot(aes(x = i + j, y = k, color = D)) + 
+  geom_point(alpha = .5, size = 2)+
+  scale_color_viridis_c(direction = -1)
+```
+
+## Per song
+
+```{r}
+disrup %>% 
+  filter(D == 1) %>% 
+  top_n(10, i)
+```
+
+```{r}
+disrup %>% 
+  filter(artist == "Trio Juazeiro", year == 1982) %>% 
+  arrange(-D)
+```
+
+```{r}
+disrup %>% 
+  filter(grepl("Derramaro o Gai"))
+```
+
+
+## Per artist
 
 
 ```{r}
@@ -77,8 +194,9 @@ plot_profile = function(d) {
     summarise(D95 = quantile(D, .95, na.rm = T),
               D05 = quantile(D, .05, na.rm = T)) %>%
     ggplot(aes(x = year)) +
-    facet_wrap( ~ reorder(artist, D95)) +
-    geom_ribbon(aes(ymax = D95, ymin = D05), color = "black", fill = "coral") +
+    facet_wrap( ~ reorder(artist, -D95)) +
+    # geom_ribbon(aes(ymax = D95, ymin = D05), color = "black", fill = "coral") +
+    geom_linerange(aes(ymax = D95, ymin = D05), color = "coral", size = 1.5) +
     ylim(-1, 1) +
     labs(title = "5 to 95-percentile range of D per year")
 }
@@ -96,7 +214,7 @@ d %>%
 ```{r}
 disrup_raw %>%
   filter(i > 0, j > 0) %>%
-  mutate(year = cut(year, breaks = 10)) %>%
+  mutate(year = cut(year, breaks = 5)) %>%
   ggplot(aes(x = year, y = D, group = year)) +
   geom_boxplot(coef = 1000)
 

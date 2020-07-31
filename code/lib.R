@@ -11,7 +11,8 @@ import_data <- function(){
         separate(data, sep = ",", into = c("i", "j", "k", "D")) %>% 
         select(X1, X2, year, artist, album, song = X3, i, j, k, D)
     
-    
+    d2 %>% 
+        write_csv(here::here("data/disruptions.csv"))
 }
 
 read_projectdata <- function(){
